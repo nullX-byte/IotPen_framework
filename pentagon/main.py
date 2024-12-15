@@ -49,7 +49,7 @@ def run():
         elif option == '5':
             pass
         elif option == '6':
-            print("\n\033[38m Exiting the program")
+            print("\n\033[38m Exiting the program\033[0m \U0001F972")
             exit(0)
         else:
             print("\nInvalid Input")
