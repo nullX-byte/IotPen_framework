@@ -126,20 +126,20 @@ def start():
     current_directory = subprocess.getoutput('pwd')
     output_dir = current_directory + "/scan_result"
 
-    dpath = Path(f'{output_dir}')
+    dir_path = Path(f'{output_dir}')
     # Check if the directory exists
 
     ch = input("\n  \033[34mDo you want the save the scan results?(Y/N): ")
-    if dpath.is_dir():
+    if dir_path.is_dir():
         pass
     else:
         cm = "mkdir -p scan_result && pwd "
         d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
-        dpath = d.stdout()
+        dir_path = d.stdout()
     
     if ch == 'Y' or ch =='y':
         fname = input("\n  Enter filename:")
-        fpath = f"{dpath}/{fname}"
+        fpath = f"{dir_path}/{fname}"
     elif ch =='N' or ch == 'n':
         pass
     else:
