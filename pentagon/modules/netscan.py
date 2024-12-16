@@ -121,19 +121,29 @@ def start():
     '''
     print(f"\033[31m{art}\033[0m")
     target_ip = input("\n  \033[34mEnter target host or IP Address or Network Subnet:(example.com/x.x.x.x): ")
-    cmd = "mkdir -p scan_result && cd scan_results && pwd"
-                   
+
+    current_directory = subprocess.getoutput('pwd')
+    output_dir = current_directory + "/scan_result"
+
+    dpath = Path(f'{output_dir}')
+    # Check if the directory exists
+
     ch = input("\n  \033[34mDo you want the save the scan results?(Y/N): ")
+    if dpath.is_dir():
+        pass
+    else:
+        cm = "mkdir -p scan_result && pwd "
+        d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
+        dpath = d.stdout()
+    
     if ch == 'Y' or ch =='y':
-        if fname == '':
-            d = subprocess.run(f"{cmd}", shell=True, capture_output=True, text=True)
-            dr = d.stdout()
         fname = input("\n  Enter filename:")
-        fpath = f"{dr}/{fname}"
+        fpath = f"{dpath}/{fname}"
     elif ch =='N' or ch == 'n':
         pass
     else:
         print("\n  \033[31mInvalid Choice !!\033[0m")
+
     
     while True:
         show_menu()
