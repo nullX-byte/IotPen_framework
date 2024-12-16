@@ -6,7 +6,7 @@ from scapy.utils import wrpcap
 from scapy.utils import PcapWriter
 import getpass
 import shlex
-
+from pathlib import Path
 
 # list to store captured packets
 packet_list = []
