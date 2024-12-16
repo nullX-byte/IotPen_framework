@@ -122,12 +122,12 @@ def start():
     print(f"\033[31m{art}\033[0m")
     target_ip = input("\n  \033[34mEnter target host or IP Address or Network Subnet:(example.com/x.x.x.x): ")
     cmd = "mkdir -p scan_result && cd scan_results && pwd"
-    if fname == '':
-        d = subprocess.run(f"{cmd}", shell=True, capture_output=True, text=True)
-        dr = d.stdout()
-                
+                   
     ch = input("\n  \033[34mDo you want the save the scan results?(Y/N): ")
     if ch == 'Y' or ch =='y':
+        if fname == '':
+            d = subprocess.run(f"{cmd}", shell=True, capture_output=True, text=True)
+            dr = d.stdout()
         fname = input("\n  Enter filename:")
         fpath = f"{dr}/{fname}"
     elif ch =='N' or ch == 'n':
