@@ -40,10 +40,10 @@ def capture_and_open():
     current_directory = subprocess.getoutput('pwd')
     output_dir = current_directory + "/captures"
 
-    dpath = Path(f'{output_dir}')
+    dir_path = Path(f'{output_dir}')
     # Check if the directory exists
 
-    if dpath.is_dir():
+    if dir_path.is_dir():
         pass
     else:
         cm = "mkdir -p captures && pwd "
