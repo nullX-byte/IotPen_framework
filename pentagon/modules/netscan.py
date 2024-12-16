@@ -1,6 +1,7 @@
 import nmap
 import sys
 import subprocess
+from pathlib import Path
 
 res = subprocess.run('hostname -I', capture_output=True, shell=True, text=True)
 ipaddr =res.stdout.split()[0]
