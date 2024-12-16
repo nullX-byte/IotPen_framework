@@ -34,11 +34,15 @@ def capture_and_open():
     print(f"\n\033[34m{art}\033[0m\n\n\033[36m1. Bluetooth \n2. Wireless(Wifi)")
     choice = input("\n\033[36mChoose interface:")
     interface = enable_device(choice)
-
+    
     # defining file name and path
-    file_name = input("\n\033[36mEnter the filename with :")
     file_ext = ".pcap"
-    file = "/home/kushal/prac/IotProj/IoTSec_framework/Capture/{}{}".format(file_name, file_ext)
+    if file_name == '':
+        d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
+        dr = d.stdout()
+    file_name = input("\n\033[36mEnter the filename with :")
+    file = "{dr}/{}{}".format(dr, file_name, file_ext)
+   
     capture_duration = int(input("\n\033[36m[*] How long do you want to capture?(in seconds):"))
     
     # Starting Live capture on specified interface
