@@ -50,13 +50,9 @@ def capture_and_open():
         d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
         dir_path = d.stdout
     
-    if ch == 'Y' or ch =='y':
-        fname = input("\n  Enter filename:")
-        file = f"{dir_path}/{fname}{file_ext}"
-    elif ch =='N' or ch == 'n':
-        pass
-    else:
-        print("\n  \033[31mInvalid Choice !!\033[0m")
+    fname = input("\n  Enter filename:")
+    file = f"{dir_path}/{fname}{file_ext}"
+    
     capture_duration = int(input("\n\033[36m[*] How long do you want to capture?(in seconds):"))
     
     # Starting Live capture on specified interface
