@@ -37,12 +37,26 @@ def capture_and_open():
     
     # defining file name and path
     file_ext = ".pcap"
-    if file_name == '':
+    current_directory = subprocess.getoutput('pwd')
+    output_dir = current_directory + "/captures"
+
+    dpath = Path(f'{output_dir}')
+    # Check if the directory exists
+
+    if dpath.is_dir():
+        pass
+    else:
+        cm = "mkdir -p captures && pwd "
         d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
-        dr = d.stdout()
-    file_name = input("\n\033[36mEnter the filename with :")
-    file = "{dr}/{}{}".format(dr, file_name, file_ext)
-   
+        dpath = d.stdout()
+    
+    if ch == 'Y' or ch =='y':
+        fname = input("\n  Enter filename:")
+        fpath = f"{dpath}/{fname}{file_ext}"
+    elif ch =='N' or ch == 'n':
+        pass
+    else:
+        print("\n  \033[31mInvalid Choice !!\033[0m")
     capture_duration = int(input("\n\033[36m[*] How long do you want to capture?(in seconds):"))
     
     # Starting Live capture on specified interface
