@@ -48,11 +48,11 @@ def capture_and_open():
     else:
         cm = "mkdir -p captures && pwd "
         d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
-        dpath = d.stdout()
+        dir_path = d.stdout()
     
     if ch == 'Y' or ch =='y':
         fname = input("\n  Enter filename:")
-        file = f"{dpath}/{fname}{file_ext}"
+        file = f"{dir_path}/{fname}{file_ext}"
     elif ch =='N' or ch == 'n':
         pass
     else:
