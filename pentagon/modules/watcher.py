@@ -52,7 +52,7 @@ def capture_and_open():
     
     if ch == 'Y' or ch =='y':
         fname = input("\n  Enter filename:")
-        fpath = f"{dpath}/{fname}{file_ext}"
+        file = f"{dpath}/{fname}{file_ext}"
     elif ch =='N' or ch == 'n':
         pass
     else:
