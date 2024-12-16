@@ -30,22 +30,22 @@ def run():
             print("\033[H\033[J")
             nt.start()
             print("\033[H\033[J")
-            start()
+            run()
         elif option == '2':
             print("\033[H\033[J")
             w.capture_and_open()
             print("\033[H\033[J")
-            start()
+            run()
         elif option == '3':
             print("\033[H\033[J")
             s.initialize()
             print("\033[H\033[J")
-            start()
+            run()
         elif option == '4':
             print("\033[H\033[J")
             sw.collect()
             print("\033[H\033[J")
-            start()
+            run()
         elif option == '5':
             pass
         elif option == '6':
