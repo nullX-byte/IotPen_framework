@@ -135,7 +135,7 @@ def start():
     else:
         cm = "mkdir -p scan_result && pwd "
         d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
-        dir_path = d.stdout()
+        dir_path = d.stdout
     
     if ch == 'Y' or ch =='y':
         fname = input("\n  Enter filename:")
