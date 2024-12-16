@@ -14,7 +14,7 @@ def port_scans(target_ip, ch):
         
     print(f"Running Nmap port scans...")
 
-    # ch = input("\033[34mDo you want the save the scan results?(Y/N): ") 
+     
     try:
         nm.scan(hosts=target_ip, arguments=nmap_args)
         if nm.all_hosts():
@@ -82,18 +82,7 @@ def serv_scan(target_ip, ch):
     else:
         print("\n033[34mInvalid Input!!")
 
-'''def slowloris_ddos(target_ip, ch):
-    if ch == 'Y' or ch == 'y':
-        nmap_args = f'--script -n http-slowloris-check --exclude {ipaddr} -oN {fpath} '
-    else:
-        nmap_args=' --script -n http-slowloris-check'
-    ch = input("\033[34mDo you want the save the scan results?(Y/N): ") 
-    print(f"\n Running NSE for possible DoS attacks...")
-    result = subprocess.run(f"nmap {nmap_args} {target_ip} ", shell=True, capture_output=True, text=True)
-    print(f"\nNmap Scan Complete.")
-    print(result.stdout)
-'''
-    
+  
 def vuln_scan(target_ip, ch):
     if ch == 'Y' or ch == 'y':
         nmap_args=f'--script=vuln -n -vv --exclude {ipaddr} -oN {fpath}'
@@ -132,11 +121,13 @@ def start():
     '''
     print(f"\033[31m{art}\033[0m")
     target_ip = input("\n  \033[34mEnter target host or IP Address or Network Subnet:(example.com/x.x.x.x): ")
+    d = subprocess.run("mkdir -p scan_result && cd scan_results && pwd", shell=True, capture_output=True, text=True)
+    dir = d.stdout()
                 
     ch = input("\n  \033[34mDo you want the save the scan results?(Y/N): ")
     if ch == 'Y' or ch =='y':
         fname = input("\n  Enter filename:")
-        fpath = f"/home/kushal/prac/IotProj/IoTSec_framework/scan_results/{fname}"
+        fpath = f"{dir}/{fname}"
     elif ch =='N' or ch == 'n':
         pass
     else:
