@@ -23,7 +23,7 @@ banner = '''
 
 def run():
     print(f"\033[1:31m{banner}\033[0m")
-    print("\033[1:34m1. Network Scan\n2. Sniffing\n3. ARP Spoofing\n4. Flooding\n5. VulnScan\n6. Exit \033[0m")
+    print("\033[1:34m1. Network Scan\n2. Sniffing\n3. ARP Spoofing\n4. Flooding\n5 Exit \033[0m")
     try:
         option = input("\n\033[1:34mYour choice: \033[0m")
         if option == '1':
@@ -46,9 +46,9 @@ def run():
             sw.collect()
             print("\033[H\033[J")
             run()
+        #elif option == '5':
+        #    pass
         elif option == '5':
-            pass
-        elif option == '6':
             print("\n\033[38m Exiting the program\033[0m \U0001F972")
             exit(0)
         else:
