@@ -18,7 +18,7 @@ def packet_callback(packet):
     packet_list.append(packet)
 
 
-# Captures the packet on specific interface, saves in a file and opens it in wireshark
+# This function captures the packet on specific interface, saves in a file and opens it in wireshark
 
 def capture_and_open():
     art ='''
@@ -37,6 +37,8 @@ def capture_and_open():
     
     # defining file name and path
     file_ext = ".pcap"
+
+    # Directory where the captured packets are stored
     current_directory = subprocess.getoutput('pwd')
     output_dir = current_directory + "/captures"
 
@@ -58,11 +60,14 @@ def capture_and_open():
     # Starting Live capture on specified interface
     
     print(f"\n\033[36mStarting Live Packet Capture on {interface} interface for {capture_duration} seconds...\n ")  
+
+    # Capturing bluetooth packets
     if interface =='bluetooth0':
         pyshark.LiveCapture(interface=interface, output_file=file).sniff(timeout=capture_duration)
     else:
+        # Capturing wifi packets
         sniff(iface=interface, prn=packet_callback, timeout=capture_duration)
-        if len(packet_list) > 0:
+        if len(packet_list) > 0:   
             pktdump =PcapWriter(file, append="True", sync=True)
             pktdump.write(packet_list)
         else:
@@ -75,10 +80,13 @@ def capture_and_open():
    
     # Running wireshark
     wireshark_path = "/usr/bin/wireshark"
+
+    # Captures status code of the wireshark
     exit_stat = subprocess.run([wireshark_path, file])
     ret_code = exit_stat.returncode
-    #print(ret_code)
     time.sleep(1)
+
+    # Checks for successfull exit of the wireshark and disables the monitor mode
     if ret_code == 0 and interface:
         man_mode = subprocess.run(f"sudo airmon-ng stop {interface} && sudo systemctl restart NetworkManager", shell=True, capture_output=True, text=True)
         print(man_mode.stdout)
@@ -87,6 +95,7 @@ def capture_and_open():
         print("\n\033[31m\033[5mError while closing wireshark !!![0m")
     
 
+# Enabling monitor mode of the wifi card or enables bluetooth
 def enable_mon(ch, iface):
     if ch == 1:
         try:
@@ -115,6 +124,7 @@ def enable_mon(ch, iface):
     elif ch == 2:
         print("\nCurrent interface:",iface) 
         print(f"\n\033[36m\033[5mEnabling Monitor mode !!!\033[0m")
+        
         # Prompt for sudo password
         password = getpass.getpass(prompt="Enter your password: ")
         kill_cmd = "sudo airmon-ng check kill" 
@@ -125,6 +135,7 @@ def enable_mon(ch, iface):
         del password
         print(res_mon.stdout)
 
+        # Display new name for the interface after enabling monitor mode
         res = subprocess.run('iw dev | grep Interface | cut -f 2 -d " "', shell=True, capture_output=True, text=True)
         iface = res.stdout.strip('\n')
         print("\n\033[36mAfter airmon-ng, new interface: ",iface) 
@@ -135,7 +146,7 @@ def enable_mon(ch, iface):
 
 
 
-# Turn on wireless devices like bluetooth
+# Turn on wireless devices like bluetooth or wifi
 def enable_device(choice):
     try:
         result = subprocess.run('iw dev | grep Interface | cut -f 2 -d " "', shell=True, capture_output=True, text=True)
