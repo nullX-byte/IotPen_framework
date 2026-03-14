@@ -6,10 +6,12 @@ Includes all major nmap features and scanning capabilities
 import nmap
 import sys
 import subprocess
+import re
+import shlex
 from pathlib import Path
 
 # Get local IP address to exclude from scans
-res = subprocess.run('hostname -I', capture_output=True, shell=True, text=True)
+res = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
 ipaddr = res.stdout.split()[0] if res.stdout.strip() else ""
 
 # Initialize PortScanner lazily to allow import without nmap binary
@@ -25,6 +27,80 @@ def get_scanner():
 # Global variables for file output
 fpath = None
 fname = None
+
+
+# =============================================================================
+# INPUT VALIDATION AND SECURITY HELPERS
+# =============================================================================
+
+def validate_target(target):
+    """
+    Validate target IP address, hostname, or CIDR notation.
+    Returns True if valid, False otherwise.
+    """
+    if not target or not isinstance(target, str):
+        return False
+    
+    # Remove any dangerous shell characters
+    dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '{', '}', '<', '>', '\n', '\r', '\\']
+    for char in dangerous_chars:
+        if char in target:
+            return False
+    
+    # Patterns for valid targets
+    # IPv4 address (with optional CIDR)
+    ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}(/\d{1,2})?$'
+    # IPv6 address
+    ipv6_pattern = r'^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(/\d{1,3})?$'
+    # Hostname (basic validation)
+    hostname_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$'
+    # IP range (e.g., 192.168.1.1-100)
+    ip_range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}$'
+    
+    if (re.match(ipv4_pattern, target) or 
+        re.match(ipv6_pattern, target) or 
+        re.match(hostname_pattern, target) or
+        re.match(ip_range_pattern, target)):
+        return True
+    
+    return False
+
+
+def validate_filename(filename):
+    """
+    Validate filename for output files.
+    Returns True if valid, False otherwise.
+    """
+    if not filename or not isinstance(filename, str):
+        return False
+    
+    # Only allow alphanumeric characters, underscores, hyphens, and dots
+    filename_pattern = r'^[a-zA-Z0-9_.-]+$'
+    return bool(re.match(filename_pattern, filename))
+
+
+def run_nmap_secure(nmap_args_list, target):
+    """
+    Execute nmap scan securely using argument list instead of shell=True.
+    Returns the result object.
+    """
+    if not validate_target(target):
+        print("\033[31mError: Invalid target format. Please use valid IP address, hostname, or CIDR notation.\033[0m")
+        return None
+    
+    try:
+        cmd = ['nmap'] + nmap_args_list + [target]
+        print(f"\n\033[33mScanning in progress...\033[0m")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        print("\n\033[32mScan Complete!\033[0m")
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(f"\033[31mErrors:\033[0m {result.stderr}")
+        return result
+    except Exception as e:
+        print(f"\033[31mAn error occurred: {e}\033[0m")
+        return None
 
 # =============================================================================
 # HOST DISCOVERY FUNCTIONS
@@ -210,25 +286,27 @@ def serv_scan(target_ip, ch):
     """
     OS and service version detection scan
     """
+    # Build base arguments as a list for secure execution
+    base_args = ['-A', '-n', '-T4', '--exclude', ipaddr]
     if ch == 'Y' or ch == 'y':
-        nmap_args = f'-A -n -T4 --exclude {ipaddr} -oN {fpath}'
-    else:
-        nmap_args = f'-A -n -T4 --exclude {ipaddr}'
+        base_args.extend(['-oN', fpath])
     
     print(f"\nRunning OS version and Service Detection Scans...")
     print("Scanning options: \n1. Detailed/Verbose Scan \n2. Quiet Scan")
     vb = input("Choose: ")
     
     if vb == '1':
-        nmap_args = nmap_args[:3] + ' -vv ' + nmap_args[3:]
+        # Insert -vv after -A for verbose output
+        args = ['-A', '-vv', '-n', '-T4', '--exclude', ipaddr]
+        if ch == 'Y' or ch == 'y':
+            args.extend(['-oN', fpath])
+        nmap_args = ' '.join(args)
         print(f"Running: nmap {nmap_args} {target_ip}")
-        result = subprocess.run(f"nmap {nmap_args} {target_ip}", shell=True, capture_output=True, text=True)
-        print("\nScan Complete!!!")
-        print(result.stdout)
+        run_nmap_secure(args, target_ip)
     elif vb == '2':
-        result = subprocess.run(f"nmap {nmap_args} {target_ip}", shell=True, capture_output=True, text=True)
-        print(f"\nNmap Scan Complete.")
-        print(result.stdout)
+        nmap_args = ' '.join(base_args)
+        print(f"Running: nmap {nmap_args} {target_ip}")
+        run_nmap_secure(base_args, target_ip)
     else:
         print("\033[31mInvalid Input!!\033[0m")
 
@@ -286,14 +364,12 @@ def vuln_scan(target_ip, ch):
     Basic vulnerability scan using NSE scripts
     """
     if ch == 'Y' or ch == 'y':
-        nmap_args = f'--script=vuln -n -vv --exclude {ipaddr} -oN {fpath}'
+        args = ['--script=vuln', '-n', '-vv', '--exclude', ipaddr, '-oN', fpath]
     else:
-        nmap_args = f'-sV -vv -n --script=vuln --exclude {ipaddr}'
+        args = ['-sV', '-vv', '-n', '--script=vuln', '--exclude', ipaddr]
     
     print(f"\nRunning Vulnerability Scan")
-    result = subprocess.run(f"nmap {nmap_args} {target_ip}", shell=True, capture_output=True, text=True)
-    print(f"\nNmap Scan Complete.")
-    print(result.stdout)
+    run_nmap_secure(args, target_ip)
 
 
 def nse_script_scan(target_ip, ch):
@@ -754,13 +830,20 @@ def custom_scan(target_ip, ch):
 
 def run_nmap_scan(target_ip, nmap_args):
     """
-    Execute nmap scan and display results
+    Execute nmap scan and display results.
+    This function parses the nmap_args string and uses secure execution.
     """
+    if not validate_target(target_ip):
+        print("\033[31mError: Invalid target format. Please use valid IP address, hostname, or CIDR notation.\033[0m")
+        return
+    
     try:
         print(f"\n\033[33mScanning in progress...\033[0m")
+        # Parse the nmap_args string into a list, handling quoted arguments properly
+        args_list = shlex.split(nmap_args)
+        cmd = ['nmap'] + args_list + [target_ip]
         result = subprocess.run(
-            f"nmap {nmap_args} {target_ip}",
-            shell=True,
+            cmd,
             capture_output=True,
             text=True
         )
@@ -876,24 +959,37 @@ def start():
 
     '''
     print(f"\033[31m{art}\033[0m")
-    target_ip = input("\n  \033[34mEnter target host or IP Address or Network Subnet (example.com/x.x.x.x): \033[0m")
+    
+    # Get and validate target IP
+    while True:
+        target_ip = input("\n  \033[34mEnter target host or IP Address or Network Subnet (example.com/x.x.x.x): \033[0m")
+        if validate_target(target_ip):
+            break
+        print("\033[31m  Invalid target format! Please enter a valid IP address, hostname, or CIDR notation.\033[0m")
 
-    current_directory = subprocess.getoutput('pwd')
+    # Get current directory using secure method
+    current_dir_result = subprocess.run(['pwd'], capture_output=True, text=True)
+    current_directory = current_dir_result.stdout.strip()
     output_dir = current_directory + "/scan_result"
 
-    dir_path = Path(f'{output_dir}')
+    dir_path = Path(output_dir)
     
     ch = input("\n  \033[34mDo you want to save the scan results? (Y/N): \033[0m")
-    if dir_path.is_dir():
-        pass
-    else:
-        cm = "mkdir -p scan_result && pwd"
-        d = subprocess.run(f"{cm}", shell=True, capture_output=True, text=True)
-        dir_path = d.stdout.strip()
+    
+    # Create output directory if it doesn't exist
+    if not dir_path.is_dir():
+        dir_path.mkdir(parents=True, exist_ok=True)
+    
+    # Convert to string for path concatenation
+    dir_path_str = str(dir_path)
     
     if ch == 'Y' or ch == 'y':
-        fname = input("\n  Enter filename: ")
-        fpath = f"{dir_path}/{fname}"
+        while True:
+            fname = input("\n  Enter filename: ")
+            if validate_filename(fname):
+                fpath = f"{dir_path_str}/{fname}"
+                break
+            print("\033[31m  Invalid filename! Please use only alphanumeric characters, underscores, hyphens, and dots.\033[0m")
     elif ch == 'N' or ch == 'n':
         pass
     else:
