@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Pentagon Security Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="nav-header">
+        <div class="nav-brand">
+            <span class="logo-icon">⬠</span>
+            <span class="logo-text">PENTAGON</span>
+            <span class="status-indicator online"></span>
+        </div>
+        <nav class="nav-menu">
+            <a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a>
+            <a href="#scans" class="nav-link" data-section="scans">Scans</a>
+            <a href="#map" class="nav-link" data-section="map">Threat Map</a>
+            <a href="#logs" class="nav-link" data-section="logs">Logs</a>
+        </nav>
+        <div class="nav-actions">
+            <span class="user-info">{{ session.username }}</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section active">
+            <!-- Stats Overview -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🔍</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="active-tasks">0</div>
+                        <div class="stat-label">Active Tasks</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="completed-tasks">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🖥️</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="hosts-found">0</div>
+                        <div class="stat-label">Hosts Found</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📡</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="packets-captured">0</div>
+                        <div class="stat-label">Packets</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3>Task Distribution</h3>
+                    <canvas id="taskDistChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Task Status</h3>
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Activity Timeline</h3>
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Active Tasks Section -->
+            <div class="tasks-section">
+                <h3>Active Operations</h3>
+                <div class="tasks-list" id="active-tasks-list">
+                    <!-- Tasks will be dynamically populated -->
+                    <div class="empty-state">No active tasks. Start a scan from the Scans tab.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scans Section -->
+        <section id="scans" class="section">
+            <div class="scan-controls">
+                <h2>Start New Operation</h2>
+                
+                <!-- Nmap Scan Card -->
+                <div class="scan-card">
+                    <div class="scan-card-header">
+                        <span class="scan-icon">🌐</span>
+                        <h3>Network Scan (Nmap)</h3>
+                    </div>
+                    <div class="scan-card-body">
+                        <div class="form-group">
+                            <label>Target IP/Subnet</label>
+                            <input type="text" id="nmap-target" placeholder="192.168.1.0/24">
+                        </div>
+                        <div class="form-group">
+                            <label>Scan Type</label>
+                            <select id="nmap-type">
+                                <option value="quick">Quick Discovery (-sn)</option>
+                                <option value="ports">Port Scan (Top 100)</option>
+                                <option value="services">Service Detection</option>
+                                <option value="full">Full Scan (All Ports)</option>
+                                <option value="vuln">Vulnerability Scan</option>
+                            </select>
+                        </div>
+                        <button class="btn-primary" onclick="startNmapScan()">Start Scan</button>
+                    </div>
+                </div>
+
+                <!-- Traffic Capture Card -->
+                <div class="scan-card">
+                    <div class="scan-card-header">
+                        <span class="scan-icon">📊</span>
+                        <h3>Traffic Capture</h3>
+                    </div>
+                    <div class="scan-card-body">
+                        <div class="form-group">
+                            <label>Interface</label>
+                            <input type="text" id="capture-interface" placeholder="eth0">
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (seconds)</label>
+                            <input type="number" id="capture-duration" value="30" min="5" max="300">
+                        </div>
+                        <button class="btn-primary" onclick="startCapture()">Start Capture</button>
+                    </div>
+                </div>
+
+                <!-- ARP Spoof Card -->
+                <div class="scan-card">
+                    <div class="scan-card-header">
+                        <span class="scan-icon">🎭</span>
+                        <h3>ARP Spoofing</h3>
+                    </div>
+                    <div class="scan-card-body">
+                        <div class="form-group">
+                            <label>Target IP</label>
+                            <input type="text" id="spoof-target" placeholder="192.168.1.100">
+                        </div>
+                        <div class="form-group">
+                            <label>Gateway IP</label>
+                            <input type="text" id="spoof-gateway" placeholder="192.168.1.1">
+                        </div>
+                        <button class="btn-warning" onclick="startSpoof()">Start Spoofing</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Tasks List -->
+            <div class="all-tasks-section">
+                <h3>All Tasks</h3>
+                <div class="tasks-table-container">
+                    <table class="tasks-table" id="all-tasks-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Target</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                                <th>Started</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasks-tbody">
+                            <!-- Tasks will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map Section -->
+        <section id="map" class="section">
+            <div class="map-container">
+                <h2>Global Threat Map</h2>
+                <p class="map-subtitle">Real-time visualization of security operations and targets</p>
+                <div id="threat-map"></div>
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <span class="legend-marker source"></span>
+                        <span>Your Location</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker target"></span>
+                        <span>Target</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker active"></span>
+                        <span>Active Connection</span>
+                    </div>
+                </div>
+            </div>
+            <div class="map-stats">
+                <div class="map-stat-card">
+                    <h4>Active Connections</h4>
+                    <div class="map-stat-value" id="map-connections">0</div>
+                </div>
+                <div class="map-stat-card">
+                    <h4>Countries Targeted</h4>
+                    <div class="map-stat-value" id="map-countries">0</div>
+                </div>
+                <div class="map-stat-card">
+                    <h4>Data Transferred</h4>
+                    <div class="map-stat-value" id="map-data">0 KB</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Logs Section -->
+        <section id="logs" class="section">
+            <div class="logs-container">
+                <div class="logs-header">
+                    <h2>System Logs</h2>
+                    <div class="logs-actions">
+                        <button class="btn-secondary" onclick="clearLogs()">Clear</button>
+                        <button class="btn-secondary" onclick="exportLogs()">Export</button>
+                    </div>
+                </div>
+                <div class="logs-content" id="logs-content">
+                    <div class="log-entry system">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-message">Waiting for events...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Task Detail Modal -->
+    <div class="modal" id="task-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Task Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="task-modal-body">
+                <!-- Content will be dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
