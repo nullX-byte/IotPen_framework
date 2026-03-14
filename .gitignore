@@ -35,14 +35,12 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
-.nox/
 .coverage
 .coverage.*
 .cache
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
 .hypothesis/
 .pytest_cache/
 
@@ -52,19 +50,20 @@ coverage.xml
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
-# IDE settings
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
+# Scan results
+scan_result/
+*.nmap
+*.xml
+*.gnmap
+
 # OS files
 .DS_Store
 Thumbs.db
-
-# Scan results
-scan_result/
