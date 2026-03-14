@@ -79,6 +79,93 @@ def validate_filename(filename):
     return bool(re.match(filename_pattern, filename))
 
 
+def validate_port_spec(port_spec):
+    """
+    Validate port specification (e.g., 22,80,443 or 1-1000).
+    Returns True if valid, False otherwise.
+    """
+    if not port_spec or not isinstance(port_spec, str):
+        return False
+    # Allow digits, commas, and hyphens
+    port_pattern = r'^[\d,\-]+$'
+    return bool(re.match(port_pattern, port_spec))
+
+
+def validate_positive_integer(value):
+    """
+    Validate that input is a positive integer string.
+    Returns True if valid, False otherwise.
+    """
+    if not value or not isinstance(value, str):
+        return False
+    return value.isdigit() and int(value) > 0
+
+
+def validate_script_name(script_name):
+    """
+    Validate NSE script name(s).
+    Returns True if valid, False otherwise.
+    """
+    if not script_name or not isinstance(script_name, str):
+        return False
+    # Allow alphanumeric, hyphens, underscores, commas, dots, and wildcards
+    script_pattern = r'^[a-zA-Z0-9_,.*\-]+$'
+    return bool(re.match(script_pattern, script_name))
+
+
+def validate_decoy_ips(decoys):
+    """
+    Validate decoy IP specification.
+    Returns True if valid, False otherwise.
+    """
+    if not decoys or not isinstance(decoys, str):
+        return False
+    # Allow IPs, commas, ME, RND keywords
+    parts = decoys.split(',')
+    ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+    for part in parts:
+        part = part.strip()
+        if part.upper() in ['ME', 'RND']:
+            continue
+        if not re.match(ip_pattern, part):
+            return False
+    return True
+
+
+def validate_mac_address(mac):
+    """
+    Validate MAC address input.
+    Returns True if valid, False otherwise.
+    """
+    if not mac or not isinstance(mac, str):
+        return False
+    # Allow: 0 (random), vendor names (alphanumeric), or MAC format
+    if mac == '0':
+        return True
+    # Check for MAC address format
+    mac_pattern = r'^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$'
+    if re.match(mac_pattern, mac):
+        return True
+    # Allow vendor names (alphanumeric with spaces and hyphens)
+    vendor_pattern = r'^[a-zA-Z0-9\- ]+$'
+    return bool(re.match(vendor_pattern, mac))
+
+
+def validate_nmap_args(args_string):
+    """
+    Basic validation for custom nmap arguments.
+    Returns True if input appears safe, False otherwise.
+    """
+    if not args_string or not isinstance(args_string, str):
+        return False
+    # Disallow dangerous shell characters
+    dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '{', '}', '<', '>', '\n', '\r', '\\']
+    for char in dangerous_chars:
+        if char in args_string:
+            return False
+    return True
+
+
 def run_nmap_secure(nmap_args_list, target):
     """
     Execute nmap scan securely using argument list instead of shell=True.
@@ -264,10 +351,16 @@ def advanced_port_scan(target_ip, ch):
     
     if scan_choice == '13':
         port_range = input("Enter port range (e.g., 1-1000, 22,80,443): ")
+        if not validate_port_spec(port_range):
+            print("\033[31mInvalid port specification! Use numbers, commas, and hyphens only.\033[0m")
+            return
         nmap_args = f'-sS -p {port_range} {base_args}'
         run_nmap_scan(target_ip, nmap_args)
     elif scan_choice == '14':
         num_ports = input("Enter number of top ports to scan (default 1000): ") or "1000"
+        if not validate_positive_integer(num_ports):
+            print("\033[31mInvalid input! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'-sS --top-ports {num_ports} {base_args}'
         run_nmap_scan(target_ip, nmap_args)
     elif scan_choice in scan_options:
@@ -439,6 +532,9 @@ def nse_script_scan(target_ip, ch):
     
     if script_choice == '16':
         script_name = input("Enter script name(s) (comma-separated): ")
+        if not validate_script_name(script_name):
+            print("\033[31mInvalid script name! Use alphanumeric characters, hyphens, underscores, commas, dots, and wildcards only.\033[0m")
+            return
         nmap_args = f'--script={script_name} {base_args}'
         run_nmap_scan(target_ip, nmap_args)
     elif script_choice in script_options:
@@ -485,27 +581,48 @@ def evasion_scan(target_ip, ch):
         nmap_args = f'-f {base_args}'
     elif evasion_choice == '2':
         mtu = input("Enter MTU value (must be multiple of 8): ")
+        if not validate_positive_integer(mtu):
+            print("\033[31mInvalid MTU value! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'--mtu {mtu} {base_args}'
     elif evasion_choice == '3':
         decoys = input("Enter decoy IPs (comma-separated, use ME for your position): ")
+        if not validate_decoy_ips(decoys):
+            print("\033[31mInvalid decoy specification! Use valid IP addresses, ME, or RND.\033[0m")
+            return
         nmap_args = f'-D {decoys} {base_args}'
     elif evasion_choice == '4':
         zombie = input("Enter zombie host IP: ")
+        if not validate_target(zombie):
+            print("\033[31mInvalid zombie host! Please enter a valid IP address or hostname.\033[0m")
+            return
         nmap_args = f'-sI {zombie} {base_args}'
     elif evasion_choice == '5':
         src_port = input("Enter source port (common: 53, 80, 443): ")
+        if not validate_positive_integer(src_port) or int(src_port) > 65535:
+            print("\033[31mInvalid port! Please enter a number between 1 and 65535.\033[0m")
+            return
         nmap_args = f'--source-port {src_port} {base_args}'
     elif evasion_choice == '6':
         data_len = input("Enter random data length to append: ")
+        if not validate_positive_integer(data_len):
+            print("\033[31mInvalid data length! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'--data-length {data_len} {base_args}'
     elif evasion_choice == '7':
         nmap_args = f'--randomize-hosts {base_args}'
     elif evasion_choice == '8':
         print("MAC options: 0 (random), Vendor name, or specific MAC")
         mac = input("Enter MAC address option: ")
+        if not validate_mac_address(mac):
+            print("\033[31mInvalid MAC address option! Use 0, vendor name, or valid MAC format.\033[0m")
+            return
         nmap_args = f'--spoof-mac {mac} {base_args}'
     elif evasion_choice == '9':
         ttl = input("Enter TTL value: ")
+        if not validate_positive_integer(ttl) or int(ttl) > 255:
+            print("\033[31mInvalid TTL value! Please enter a number between 1 and 255.\033[0m")
+            return
         nmap_args = f'--ttl {ttl} {base_args}'
     elif evasion_choice == '10':
         nmap_args = f'--badsum {base_args}'
@@ -544,6 +661,10 @@ def output_format_scan(target_ip, ch):
         return
     
     filename = input("Enter output filename (without extension): ")
+    if not validate_filename(filename):
+        print("\033[31mInvalid filename! Use only alphanumeric characters, underscores, hyphens, and dots.\033[0m")
+        return
+    
     timing = select_timing_template()
     base_args = f'-sS -sV -n {timing} --exclude {ipaddr}'
     
@@ -648,12 +769,11 @@ def performance_options(target_ip, ch):
     print("6.  Set Max Retries (--max-retries)")
     print("7.  Disable DNS Resolution (-n)")
     print("8.  Always DNS Resolve (-R)")
-    print("9.  Custom Performance Scan")
-    print("10. Back to main menu")
+    print("9.  Back to main menu")
     
     perf_choice = input("\nSelect option: ")
     
-    if perf_choice == '10':
+    if perf_choice == '9':
         return
     
     base_args = f'-sS -n --exclude {ipaddr}'
@@ -662,31 +782,47 @@ def performance_options(target_ip, ch):
     
     if perf_choice == '1':
         rate = input("Enter minimum packets per second: ")
+        if not validate_positive_integer(rate):
+            print("\033[31mInvalid rate! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'--min-rate {rate} {base_args}'
     elif perf_choice == '2':
         rate = input("Enter maximum packets per second: ")
+        if not validate_positive_integer(rate):
+            print("\033[31mInvalid rate! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'--max-rate {rate} {base_args}'
     elif perf_choice == '3':
         min_p = input("Enter min parallelism: ")
         max_p = input("Enter max parallelism: ")
+        if not validate_positive_integer(min_p) or not validate_positive_integer(max_p):
+            print("\033[31mInvalid parallelism value! Please enter positive numbers.\033[0m")
+            return
         nmap_args = f'--min-parallelism {min_p} --max-parallelism {max_p} {base_args}'
     elif perf_choice == '4':
         timeout = input("Enter host timeout (e.g., 30m, 1h): ")
+        # Validate timeout format: number followed by s/m/h
+        timeout_pattern = r'^\d+[smh]?$'
+        if not re.match(timeout_pattern, timeout):
+            print("\033[31mInvalid timeout format! Use format like 30m, 1h, or 60s.\033[0m")
+            return
         nmap_args = f'--host-timeout {timeout} {base_args}'
     elif perf_choice == '5':
         delay = input("Enter scan delay in ms: ")
+        if not validate_positive_integer(delay):
+            print("\033[31mInvalid delay! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'--scan-delay {delay}ms {base_args}'
     elif perf_choice == '6':
         retries = input("Enter max retries: ")
+        if not validate_positive_integer(retries):
+            print("\033[31mInvalid retries value! Please enter a positive number.\033[0m")
+            return
         nmap_args = f'--max-retries {retries} {base_args}'
     elif perf_choice == '7':
         nmap_args = f'-n {base_args}'
     elif perf_choice == '8':
         nmap_args = f'-R {base_args}'
-    elif perf_choice == '9':
-        print("Custom performance options (space-separated):")
-        custom = input("Enter options: ")
-        nmap_args = f'{custom} {base_args}'
     else:
         print("\033[31mInvalid choice!\033[0m")
         return
@@ -775,16 +911,21 @@ def custom_scan(target_ip, ch):
     print("1. All ports (-p-)  2. Top ports  3. Custom range  4. Default")
     port_choice = input("Choice: ")
     
+    port_arg = ''
     if port_choice == '1':
         port_arg = '-p-'
     elif port_choice == '2':
         num = input("Number of top ports: ")
+        if not validate_positive_integer(num):
+            print("\033[31mInvalid number! Please enter a positive integer.\033[0m")
+            return
         port_arg = f'--top-ports {num}'
     elif port_choice == '3':
         ports = input("Enter ports (e.g., 22,80,443 or 1-1000): ")
+        if not validate_port_spec(ports):
+            print("\033[31mInvalid port specification! Use numbers, commas, and hyphens only.\033[0m")
+            return
         port_arg = f'-p {ports}'
-    else:
-        port_arg = ''
     
     # Version detection
     version = input("\nEnable version detection? (y/n): ")
@@ -800,7 +941,12 @@ def custom_scan(target_ip, ch):
     
     # Custom scripts
     custom_script = input("Custom script name (or press Enter to skip): ")
-    custom_script_arg = f'--script={custom_script}' if custom_script else ''
+    custom_script_arg = ''
+    if custom_script:
+        if not validate_script_name(custom_script):
+            print("\033[31mInvalid script name! Use alphanumeric, hyphens, underscores, commas, dots, wildcards only.\033[0m")
+            return
+        custom_script_arg = f'--script={custom_script}'
     
     # Timing
     timing = select_timing_template()
