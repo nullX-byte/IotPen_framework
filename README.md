@@ -19,7 +19,7 @@ Make sure you have the following installed in your system:
 * **Wireshark**
 * **Nmap**
 * **dsniff**
-* **hping3**
+* **Scapy** (installed via pip with requirements.txt)
   
 Run:
 `sudo python setup.py install` 
